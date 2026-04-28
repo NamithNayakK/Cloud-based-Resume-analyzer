@@ -34,6 +34,31 @@ const historyCount = document.getElementById('historyCount');
 const bestScore = document.getElementById('bestScore');
 const avgScore = document.getElementById('avgScore');
 const toast = document.getElementById('toast');
+const themeToggle = document.getElementById('themeToggle');
+
+// Theme handling
+function applyTheme(name) {
+  if (name === 'dark') {
+    document.documentElement.classList.add('dark');
+    themeToggle.setAttribute('aria-pressed', 'true');
+  } else {
+    document.documentElement.classList.remove('dark');
+    themeToggle.setAttribute('aria-pressed', 'false');
+  }
+  localStorage.setItem('nimbus-theme', name);
+}
+
+themeToggle?.addEventListener('click', () => {
+  const current = localStorage.getItem('nimbus-theme') || 'light';
+  applyTheme(current === 'dark' ? 'light' : 'dark');
+});
+
+// Initialize theme
+(() => {
+  const saved = localStorage.getItem('nimbus-theme');
+  const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+  applyTheme(saved || (prefersDark ? 'dark' : 'light'));
+})();
 
 function showToast(message) {
   toast.textContent = message;
@@ -325,3 +350,69 @@ updateJDMicrocopy();
 updateFileMeta();
 renderHistory();
 updateHistoryStats();
+const API_BASE_URL = 'http://localhost:5000';
+
+const form = document.getElementById('analyzerForm');
+const statusEl = document.getElementById('status');
+const resultCard = document.getElementById('resultCard');
+const scoreValue = document.getElementById('scoreValue');
+const scoreRing = document.querySelector('.score-ring');
+const matchedKeywords = document.getElementById('matchedKeywords');
+const missingKeywords = document.getElementById('missingKeywords');
+const recommendations = document.getElementById('recommendations');
+const analyzeBtn = document.getElementById('analyzeBtn');
+
+function fillList(listEl, values, fallbackText) {
+  listEl.innerHTML = '';
+  if (!values || values.length === 0) {
+    const li = document.createElement('li');
+    li.textContent = fallbackText;
+    listEl.appendChild(li);
+    return;
+  }
+
+  values.forEach((value) => {
+    const li = document.createElement('li');
+    li.textContent = value;
+    listEl.appendChild(li);
+  });
+}
+
+form.addEventListener('submit', async (event) => {
+  event.preventDefault();
+  statusEl.className = 'status';
+  statusEl.textContent = 'Uploading and analyzing...';
+  analyzeBtn.disabled = true;
+
+  try {
+    const data = new FormData(form);
+
+    const response = await fetch(`${API_BASE_URL}/api/analyze`, {
+      method: 'POST',
+      body: data,
+    });
+
+    const payload = await response.json();
+
+    if (!response.ok) {
+      throw new Error(payload.error || 'Unable to analyze resume.');
+    }
+
+    const score = payload.analysis?.overallScore || 0;
+    scoreValue.textContent = `${score}%`;
+    scoreRing.style.background = `conic-gradient(#0f766e ${score}%, #d1d5db ${score}% 100%)`;
+
+    fillList(matchedKeywords, payload.analysis?.matchedKeywords, 'No matched keywords yet.');
+    fillList(missingKeywords, payload.analysis?.missingKeywords, 'No major keyword gaps detected.');
+    fillList(recommendations, payload.analysis?.recommendations, 'Resume is in good shape for this job description.');
+
+    resultCard.classList.remove('hidden');
+    statusEl.classList.add('success');
+    statusEl.textContent = 'Analysis completed successfully.';
+  } catch (error) {
+    statusEl.classList.add('error');
+    statusEl.textContent = error.message;
+  } finally {
+    analyzeBtn.disabled = false;
+  }
+});

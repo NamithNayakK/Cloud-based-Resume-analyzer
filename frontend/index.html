@@ -12,26 +12,38 @@
   <div class="bg-grid" aria-hidden="true"></div>
 
   <main class="container">
-    <header class="hero reveal">
-      <p class="badge">Cloud Resume Intelligence</p>
-      <h1>Nimbus Resume Studio</h1>
-      <p class="subtitle">Analyze fit, identify missing signals, and iterate your resume with smarter micro-feedback.</p>
-
-      <div class="hero-stats">
-        <article class="stat-card">
-          <span class="stat-label">Analyses Saved</span>
-          <strong id="historyCount">0</strong>
-        </article>
-        <article class="stat-card">
-          <span class="stat-label">Best Match</span>
-          <strong id="bestScore">0%</strong>
-        </article>
-        <article class="stat-card">
-          <span class="stat-label">Average Score</span>
-          <strong id="avgScore">0%</strong>
-        </article>
+    <header class="topbar">
+      <div class="brand">
+        <div class="logo">Nimbus</div>
+        <div class="tag">Resume Studio</div>
+      </div>
+      <div class="top-actions">
+        <button id="themeToggle" class="ghost small" aria-pressed="false" title="Toggle theme">Toggle Theme</button>
       </div>
     </header>
+
+    <section class="hero reveal">
+      <div class="hero-left">
+        <h1>Nimbus Resume Studio</h1>
+        <p class="subtitle">Analyze fit, identify missing signals, and iterate your resume with smarter micro-feedback.</p>
+      </div>
+      <div class="hero-right">
+        <div class="hero-stats">
+          <article class="stat-card">
+            <span class="stat-label">Analyses Saved</span>
+            <strong id="historyCount">0</strong>
+          </article>
+          <article class="stat-card">
+            <span class="stat-label">Best Match</span>
+            <strong id="bestScore">0%</strong>
+          </article>
+          <article class="stat-card">
+            <span class="stat-label">Average Score</span>
+            <strong id="avgScore">0%</strong>
+          </article>
+        </div>
+      </div>
+    </section>
 
     <section class="panel reveal delay-1">
       <div class="panel-head">
