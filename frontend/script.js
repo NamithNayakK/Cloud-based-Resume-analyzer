@@ -2,21 +2,10 @@ const API_BASE_URL = 'http://localhost:5000';
 const HISTORY_KEY = 'nimbus-analysis-history-v1';
 const MAX_HISTORY_ITEMS = 8;
 
-const templates = {
-  software: 'Software Engineer role requiring Python, REST APIs, Docker, cloud deployment, testing, and scalable backend architecture.',
-  data: 'Data Analyst role requiring SQL, Excel, Power BI, dashboarding, statistical analysis, and stakeholder communication.',
-  cloud: 'Cloud Engineer role requiring AWS or Azure, Kubernetes, IaC, CI/CD pipelines, observability, and production incident handling.',
-  frontend: 'Frontend Developer role requiring JavaScript, React, UI architecture, performance optimization, accessibility, and API integration.'
-};
-
 const form = document.getElementById('analyzerForm');
 const resumeInput = document.getElementById('resume');
 const dropzone = document.getElementById('dropzone');
 const fileMeta = document.getElementById('fileMeta');
-const jobDescription = document.getElementById('jobDescription');
-const jdWordCount = document.getElementById('jdWordCount');
-const jdQuality = document.getElementById('jdQuality');
-const templateChips = document.getElementById('templateChips');
 const statusEl = document.getElementById('status');
 const loadingBar = document.getElementById('loadingBar');
 const resultCard = document.getElementById('resultCard');
@@ -25,14 +14,18 @@ const clearBtn = document.getElementById('clearBtn');
 const copyTipsBtn = document.getElementById('copyTipsBtn');
 const scoreValue = document.getElementById('scoreValue');
 const scoreRing = document.getElementById('scoreRing');
+const topRole = document.getElementById('topRole');
 const scoreBand = document.getElementById('scoreBand');
 const matchedKeywords = document.getElementById('matchedKeywords');
 const missingKeywords = document.getElementById('missingKeywords');
+const roleRecommendations = document.getElementById('roleRecommendations');
+const resumeIssues = document.getElementById('resumeIssues');
 const recommendations = document.getElementById('recommendations');
 const historyList = document.getElementById('historyList');
 const historyCount = document.getElementById('historyCount');
 const bestScore = document.getElementById('bestScore');
 const avgScore = document.getElementById('avgScore');
+const clearHistoryBtn = document.getElementById('clearHistoryBtn');
 const toast = document.getElementById('toast');
 const themeToggle = document.getElementById('themeToggle');
 
@@ -162,7 +155,7 @@ function renderHistory() {
 
     const role = document.createElement('p');
     role.className = 'history-role';
-    role.textContent = entry.jobTitle || 'Custom role';
+    role.textContent = entry.roleName || 'Suggested role';
 
     const details = document.createElement('p');
     details.textContent = `${entry.fileName} - ${new Date(entry.timestamp).toLocaleString()}`;
@@ -189,18 +182,10 @@ function saveHistory(entry) {
   updateHistoryStats();
 }
 
-function updateJDMicrocopy() {
-  const text = jobDescription.value.trim();
-  const words = text ? text.split(/\s+/).length : 0;
-  jdWordCount.textContent = `${words} words`;
-
-  if (words < 15) {
-    jdQuality.textContent = 'Short JD. Include responsibilities and tools for better matching.';
-  } else if (words < 40) {
-    jdQuality.textContent = 'Decent JD. Add required skills and impact expectations.';
-  } else {
-    jdQuality.textContent = 'Great detail level. This should produce meaningful analysis.';
-  }
+function clearHistory() {
+  localStorage.removeItem(HISTORY_KEY);
+  renderHistory();
+  updateHistoryStats();
 }
 
 function updateFileMeta() {
@@ -222,10 +207,10 @@ function setLoading(state) {
 function resetFormView() {
   form.reset();
   updateFileMeta();
-  updateJDMicrocopy();
   statusEl.className = 'status';
   statusEl.textContent = '';
 }
+
 
 function bindDropzone() {
   ['dragenter', 'dragover'].forEach((name) => {
@@ -260,14 +245,75 @@ function bindDropzone() {
   });
 }
 
+function renderRoleRecommendations(values) {
+  roleRecommendations.innerHTML = '';
+  if (!Array.isArray(values) || values.length === 0) {
+    const li = document.createElement('li');
+    li.textContent = 'No role signals detected yet.';
+    roleRecommendations.appendChild(li);
+    topRole.textContent = 'Awaiting analysis';
+    return;
+  }
+
+  topRole.textContent = values[0]?.role || 'Suggested role found';
+
+  values.slice(0, 3).forEach((item) => {
+    const li = document.createElement('li');
+    const title = document.createElement('div');
+    title.className = 'role-row';
+    const name = document.createElement('strong');
+    name.textContent = item?.role || 'Role';
+    const confidence = Number.isFinite(item?.confidence) ? Math.round(item.confidence * 100) : 0;
+    const conf = document.createElement('span');
+    conf.className = 'role-conf';
+    conf.textContent = ` ${confidence}% fit`;
+    title.appendChild(name);
+    title.appendChild(conf);
+
+    li.appendChild(title);
+
+    // Render reason lines if present
+    if (Array.isArray(item?.reason) && item.reason.length > 0) {
+      const reasonsEl = document.createElement('ul');
+      reasonsEl.className = 'role-reasons';
+      item.reason.forEach((r) => {
+        const rli = document.createElement('li');
+        rli.textContent = r;
+        reasonsEl.appendChild(rli);
+      });
+      li.appendChild(reasonsEl);
+    }
+
+    // If explicit evidence field exists, show it as a highlighted snippet
+    const evidence = item?.evidence || null;
+    if (evidence) {
+      const ev = document.createElement('blockquote');
+      ev.className = 'evidence-snippet';
+      ev.textContent = evidence;
+      li.appendChild(ev);
+    }
+
+    roleRecommendations.appendChild(li);
+  });
+}
+
+function renderIssueList(values) {
+  fillList(resumeIssues, values, 'No major mistakes detected from the extracted text.');
+}
+
 form.addEventListener('submit', async (event) => {
   event.preventDefault();
   statusEl.className = 'status';
-  statusEl.textContent = 'Uploading and analyzing...';
+  statusEl.textContent = 'Uploading and discovering the best-fit role...';
   setLoading(true);
 
   try {
-    const data = new FormData(form);
+    const data = new FormData();
+    const file = resumeInput.files?.[0];
+    if (file) {
+      data.append('resume', file);
+    }
+
     const response = await fetch(`${API_BASE_URL}/api/analyze`, {
       method: 'POST',
       body: data,
@@ -280,20 +326,26 @@ form.addEventListener('submit', async (event) => {
 
     const score = extractScore(payload);
     const analysis = payload.analysis || payload;
+    const roleList = analysis?.roleRecommendations || payload?.roleRecommendations || [];
+    const issueList = analysis?.resumeIssues || payload?.resumeIssues || [];
+    const planList = analysis?.improvementPlan || payload?.improvementPlan || analysis?.recommendations || [];
 
     updateScoreUI(score);
-    fillList(matchedKeywords, analysis?.matchedKeywords, 'No matched keywords were detected.');
-    fillList(missingKeywords, analysis?.missingKeywords, 'No major gaps detected.');
-    fillList(recommendations, analysis?.recommendations, 'Great alignment. Add quantified achievements to improve impact.');
+    fillList(matchedKeywords, analysis?.strengthSignals || analysis?.matchedKeywords, 'No strong signals were detected.');
+    fillList(missingKeywords, analysis?.skillGaps || analysis?.missingKeywords, 'No major gaps detected.');
+    renderRoleRecommendations(roleList);
+    renderIssueList(issueList);
+    fillList(recommendations, planList, 'Great alignment. Add quantified achievements to improve impact.');
 
     resultCard.classList.remove('hidden');
     statusEl.classList.add('success');
-    statusEl.textContent = 'Analysis completed successfully.';
+    statusEl.textContent = `Analysis completed successfully. Best-fit role: ${roleList[0]?.role || analysis?.extracted?.predictedCategory || 'Unknown'}.`;
+    showToast('Resume analyzed successfully');
 
     const historyEntry = {
       score,
       fileName: resumeInput.files?.[0]?.name || 'resume',
-      jobTitle: jobDescription.value.split('.').shift().slice(0, 64) || 'Custom role',
+      roleName: roleList[0]?.role || analysis?.extracted?.predictedCategory || 'Suggested role',
       timestamp: Date.now(),
     };
     saveHistory(historyEntry);
@@ -307,11 +359,26 @@ form.addEventListener('submit', async (event) => {
 });
 
 resumeInput.addEventListener('change', updateFileMeta);
-jobDescription.addEventListener('input', updateJDMicrocopy);
 
 clearBtn.addEventListener('click', () => {
   resetFormView();
   showToast('Form cleared');
+});
+
+clearHistoryBtn?.addEventListener('click', () => {
+  const hasHistory = readHistory().length > 0;
+  if (!hasHistory) {
+    showToast('No recent analyses to clear');
+    return;
+  }
+
+  const confirmed = window.confirm('Clear all recent analyses from this browser?');
+  if (!confirmed) {
+    return;
+  }
+
+  clearHistory();
+  showToast('Recent analyses cleared');
 });
 
 copyTipsBtn.addEventListener('click', async () => {
@@ -328,91 +395,7 @@ copyTipsBtn.addEventListener('click', async () => {
     showToast('Clipboard access blocked by browser.');
   }
 });
-
-templateChips.addEventListener('click', (event) => {
-  const target = event.target;
-  if (!(target instanceof HTMLButtonElement)) {
-    return;
-  }
-
-  const key = target.dataset.template;
-  if (!key || !templates[key]) {
-    return;
-  }
-
-  jobDescription.value = templates[key];
-  updateJDMicrocopy();
-  showToast(`${target.textContent} template applied`);
-});
-
 bindDropzone();
-updateJDMicrocopy();
 updateFileMeta();
 renderHistory();
 updateHistoryStats();
-const API_BASE_URL = 'http://localhost:5000';
-
-const form = document.getElementById('analyzerForm');
-const statusEl = document.getElementById('status');
-const resultCard = document.getElementById('resultCard');
-const scoreValue = document.getElementById('scoreValue');
-const scoreRing = document.querySelector('.score-ring');
-const matchedKeywords = document.getElementById('matchedKeywords');
-const missingKeywords = document.getElementById('missingKeywords');
-const recommendations = document.getElementById('recommendations');
-const analyzeBtn = document.getElementById('analyzeBtn');
-
-function fillList(listEl, values, fallbackText) {
-  listEl.innerHTML = '';
-  if (!values || values.length === 0) {
-    const li = document.createElement('li');
-    li.textContent = fallbackText;
-    listEl.appendChild(li);
-    return;
-  }
-
-  values.forEach((value) => {
-    const li = document.createElement('li');
-    li.textContent = value;
-    listEl.appendChild(li);
-  });
-}
-
-form.addEventListener('submit', async (event) => {
-  event.preventDefault();
-  statusEl.className = 'status';
-  statusEl.textContent = 'Uploading and analyzing...';
-  analyzeBtn.disabled = true;
-
-  try {
-    const data = new FormData(form);
-
-    const response = await fetch(`${API_BASE_URL}/api/analyze`, {
-      method: 'POST',
-      body: data,
-    });
-
-    const payload = await response.json();
-
-    if (!response.ok) {
-      throw new Error(payload.error || 'Unable to analyze resume.');
-    }
-
-    const score = payload.analysis?.overallScore || 0;
-    scoreValue.textContent = `${score}%`;
-    scoreRing.style.background = `conic-gradient(#0f766e ${score}%, #d1d5db ${score}% 100%)`;
-
-    fillList(matchedKeywords, payload.analysis?.matchedKeywords, 'No matched keywords yet.');
-    fillList(missingKeywords, payload.analysis?.missingKeywords, 'No major keyword gaps detected.');
-    fillList(recommendations, payload.analysis?.recommendations, 'Resume is in good shape for this job description.');
-
-    resultCard.classList.remove('hidden');
-    statusEl.classList.add('success');
-    statusEl.textContent = 'Analysis completed successfully.';
-  } catch (error) {
-    statusEl.classList.add('error');
-    statusEl.textContent = error.message;
-  } finally {
-    analyzeBtn.disabled = false;
-  }
-});

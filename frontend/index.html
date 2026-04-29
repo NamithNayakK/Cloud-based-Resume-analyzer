@@ -25,7 +25,7 @@
     <section class="hero reveal">
       <div class="hero-left">
         <h1>Nimbus Resume Studio</h1>
-        <p class="subtitle">Analyze fit, identify missing signals, and iterate your resume with smarter micro-feedback.</p>
+        <p class="subtitle">Upload a resume and discover the best-fit roles, gaps, and improvements automatically.</p>
       </div>
       <div class="hero-right">
         <div class="hero-stats">
@@ -47,8 +47,8 @@
 
     <section class="panel reveal delay-1">
       <div class="panel-head">
-        <h2>Analyze Resume</h2>
-        <p>Drop a resume and test it against a role description.</p>
+        <h2>Discover Fit</h2>
+        <p>Upload a resume and let the system recommend roles and improvement steps.</p>
       </div>
 
       <form id="analyzerForm" class="analyzer-form">
@@ -61,21 +61,6 @@
           </div>
         </div>
         <p id="fileMeta" class="file-meta">No file selected</p>
-
-        <label class="field-label" for="jobDescription">Job Description</label>
-        <textarea id="jobDescription" name="jobDescription" rows="8" placeholder="Paste the job description here..." required></textarea>
-
-        <div class="micro-row">
-          <span id="jdWordCount">0 words</span>
-          <span id="jdQuality">Add more role-specific requirements for better scoring.</span>
-        </div>
-
-        <div class="chip-row" id="templateChips">
-          <button type="button" class="chip" data-template="software">Software Engineer</button>
-          <button type="button" class="chip" data-template="data">Data Analyst</button>
-          <button type="button" class="chip" data-template="cloud">Cloud Engineer</button>
-          <button type="button" class="chip" data-template="frontend">Frontend Developer</button>
-        </div>
 
         <div class="action-row">
           <button type="submit" id="analyzeBtn">Analyze Resume</button>
@@ -100,32 +85,46 @@
           <span id="scoreValue">0%</span>
         </div>
         <div class="score-meta">
-          <p class="score-title">Match Score</p>
-          <p id="scoreBand" class="score-band">Awaiting analysis</p>
+          <p class="score-title">Career Fit Score</p>
+          <p id="topRole" class="score-band">Awaiting analysis</p>
+          <p id="scoreBand" class="score-subband">Upload a resume to discover suitable roles.</p>
         </div>
       </div>
 
       <div class="result-grid">
         <article class="result-card">
-          <h3>Matched Keywords</h3>
+          <h3>Strength Signals</h3>
           <ul id="matchedKeywords"></ul>
         </article>
         <article class="result-card">
-          <h3>Missing Keywords</h3>
+          <h3>Skill Gaps</h3>
           <ul id="missingKeywords"></ul>
         </article>
       </div>
 
       <article class="result-card">
-        <h3>Recommendations</h3>
+        <h3>Best Fit Roles</h3>
+        <ul id="roleRecommendations"></ul>
+      </article>
+
+      <article class="result-card">
+        <h3>Resume Mistakes</h3>
+        <ul id="resumeIssues"></ul>
+      </article>
+
+      <article class="result-card">
+        <h3>Improvement Plan</h3>
         <ul id="recommendations"></ul>
       </article>
     </section>
 
     <section class="panel reveal delay-3">
-      <div class="panel-head">
-        <h2>Recent Analyses</h2>
-        <p>Quickly revisit your latest runs and compare progress.</p>
+      <div class="panel-head history-head">
+        <div>
+          <h2>Recent Analyses</h2>
+          <p>Quickly revisit your latest runs and compare progress.</p>
+        </div>
+        <button type="button" id="clearHistoryBtn" class="ghost small">Clear Recent Analyses</button>
       </div>
       <div id="historyList" class="history-list"></div>
     </section>
@@ -133,6 +132,6 @@
 
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
-  <script src="script.js"></script>
+  <script src="script.js?v=20260429"></script>
 </body>
 </html>

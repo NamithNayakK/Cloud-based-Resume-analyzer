@@ -5,6 +5,18 @@ import pickle
 from collections import Counter
 from flask import Flask, request, jsonify
 
+# Optional embeddings support
+EMBEDDINGS_AVAILABLE = False
+try:
+    from sentence_transformers import SentenceTransformer
+    import numpy as np
+    EMBEDDINGS_MODEL = SentenceTransformer('all-MiniLM-L6-v2')
+    EMBEDDINGS_AVAILABLE = True
+    print('[INFO] SentenceTransformer loaded for semantic matching.')
+except Exception as exc:
+    EMBEDDINGS_AVAILABLE = False
+    print(f'[WARN] SentenceTransformer not available: {exc}. Falling back to keyword matching.')
+
 app = Flask(__name__)
 
 
@@ -94,6 +106,38 @@ JOB_FAMILY_KEYWORDS = {
     "support": {"support", "helpdesk", "customer", "service", "call center", "bpo"},
 }
 
+ROLE_RECOMMENDATIONS = {
+    "software": ["Software Engineer", "Backend Developer", "API Developer"],
+    "data": ["Data Analyst", "Business Intelligence Analyst", "Data Scientist"],
+    "cloud": ["Cloud Engineer", "DevOps Engineer", "Platform Engineer"],
+    "web": ["Frontend Developer", "Full Stack Developer", "UI Engineer"],
+    "mobile": ["Mobile App Developer", "Android Developer", "iOS Developer"],
+    "finance": ["Financial Analyst", "Accounting Associate", "Operations Analyst"],
+    "support": ["Customer Support Specialist", "Operations Associate", "Client Success Associate"],
+}
+
+ROLE_SKILL_GAPS = {
+    "software": ["python", "api", "rest", "docker", "backend", "microservices", "cloud", "testing"],
+    "data": ["sql", "excel", "power bi", "tableau", "statistics", "dashboarding", "etl", "analytics"],
+    "cloud": ["aws", "azure", "docker", "kubernetes", "ci/cd", "terraform", "observability", "linux"],
+    "web": ["javascript", "react", "html", "css", "accessibility", "performance", "api integration"],
+    "mobile": ["android", "ios", "flutter", "kotlin", "swift", "mobile testing"],
+    "finance": ["financial modeling", "excel", "forecasting", "reporting", "accounting", "risk analysis"],
+    "support": ["customer communication", "ticketing", "sla", "troubleshooting", "crm"],
+}
+
+# Precompute role-family embeddings if embeddings are available
+ROLE_FAMILY_EMBEDDINGS = {}
+if EMBEDDINGS_AVAILABLE:
+    try:
+        for family, roles in ROLE_RECOMMENDATIONS.items():
+            # Build a representative description combining role names and expected skills
+            skills = ' '.join(ROLE_SKILL_GAPS.get(family, []))
+            text = f"{family} {' '.join(roles)} {skills}"
+            ROLE_FAMILY_EMBEDDINGS[family] = EMBEDDINGS_MODEL.encode(text)
+    except Exception as exc:
+        print(f'[WARN] Failed to precompute role embeddings: {exc}')
+
 
 def normalize_token(token: str):
     """Apply light stemming so similar words share counts."""
@@ -177,6 +221,49 @@ def compute_tfidf_similarity(resume_text: str, job_description: str):
     return score, matched, missing
 
 
+def cosine_similarity(a, b):
+    try:
+        a = np.array(a, dtype=float)
+        b = np.array(b, dtype=float)
+        if np.linalg.norm(a) == 0 or np.linalg.norm(b) == 0:
+            return 0.0
+        return float(np.dot(a, b) / (np.linalg.norm(a) * np.linalg.norm(b)))
+    except Exception:
+        return 0.0
+
+
+def compute_semantic_role_scores(resume_text: str):
+    """Return semantic similarity scores for each role family using embeddings.
+    Returns list of dicts with role family, score (0-1), and evidence snippet.
+    """
+    results = []
+    if not EMBEDDINGS_AVAILABLE:
+        return results
+
+    try:
+        emb = EMBEDDINGS_MODEL.encode(resume_text)
+        for family, fam_emb in ROLE_FAMILY_EMBEDDINGS.items():
+            sim = cosine_similarity(emb, fam_emb)
+            # find short evidence: top sentence from resume matching any family keyword
+            sentences = [s.strip() for s in re.split(r'[\.\n]', resume_text) if s.strip()]
+            evidence = ''
+            for sent in sentences[:8]:
+                if any(k in sent.lower() for k in JOB_FAMILY_KEYWORDS.get(family, [])):
+                    evidence = sent
+                    break
+            results.append({
+                'family': family,
+                'score': round(float(sim), 4),
+                'evidence': evidence,
+            })
+        # sort descending
+        results.sort(key=lambda r: r['score'], reverse=True)
+    except Exception as exc:
+        print(f'[WARN] Semantic scoring failed: {exc}')
+
+    return results
+
+
 def extract_entities(text: str):
     """Extract name, email, phone, skills, education, experience years."""
     result = {
@@ -235,6 +322,178 @@ def generate_recommendations(score: int, missing_keywords: list, resume_text: st
         recommendations.append("Add quantified achievements and project outcomes to strengthen impact.")
     
     return recommendations
+
+
+def infer_job_family_from_resume(resume_text: str, extracted: dict):
+    """Infer the closest job family using the resume text and extracted skills."""
+    lowered = f"{resume_text} {' '.join(extracted.get('skills', []))}".lower()
+    for family, keywords in JOB_FAMILY_KEYWORDS.items():
+        if any(keyword in lowered for keyword in keywords):
+            return family
+    return None
+
+
+def normalize_role_name(category: str):
+    if not category:
+        return ""
+    return category.replace("-", " ").replace("_", " ").title()
+
+
+def role_family_from_category(category: str):
+    if not category:
+        return None
+    normalized = category.upper().replace(" ", "-")
+    if any(token in normalized for token in ["DATA", "ANALYT", "SCIENCE"]):
+        return "data"
+    if any(token in normalized for token in ["CLOUD", "DEVOPS", "INFRA"]):
+        return "cloud"
+    if any(token in normalized for token in ["WEB", "FRONTEND", "BACKEND", "FULLSTACK"]):
+        return "web"
+    if any(token in normalized for token in ["MOBILE", "ANDROID", "IOS", "FLUTTER"]):
+        return "mobile"
+    if any(token in normalized for token in ["FINANCE", "ACCOUNT", "BANK"]):
+        return "finance"
+    if any(token in normalized for token in ["SUPPORT", "BPO", "SERVICE", "HELPDESK"]):
+        return "support"
+    return "software"
+
+
+def build_resume_quality_score(resume_text: str, extracted: dict, predicted_category: str, category_confidence: float):
+    """Score the resume on quality signals when no JD is supplied."""
+    score = 20
+    lowered = resume_text.lower()
+
+    if extracted.get("name"):
+        score += 8
+    if extracted.get("email"):
+        score += 8
+    if extracted.get("phone"):
+        score += 8
+    if extracted.get("education"):
+        score += 8
+    if extracted.get("skills"):
+        score += min(18, len(extracted.get("skills", [])) * 3)
+    if extracted.get("totalExperienceYears", 0) > 0:
+        score += min(15, extracted.get("totalExperienceYears", 0) * 2)
+
+    if re.search(r'\b(project|built|implemented|developed|designed|led|improved|reduced|increased|delivered)\b', lowered):
+        score += 10
+    if re.search(r'\b\d+%|\b\d+\s*(?:projects?|users?|clients?|customers?|revenue|cost|sales)\b', lowered):
+        score += 12
+    if re.search(r'\b(summary|profile|objective)\b', lowered):
+        score += 4
+
+    if predicted_category:
+        score += min(10, int(round(category_confidence * 10)))
+
+    if len(resume_text.split()) < 120:
+        score -= 6
+
+    return max(10, min(100, score))
+
+
+def build_role_recommendations(resume_text: str, extracted: dict, predicted_category: str, category_confidence: float):
+    family = infer_job_family_from_resume(resume_text, extracted) or role_family_from_category(predicted_category)
+    choices = ROLE_RECOMMENDATIONS.get(family, ROLE_RECOMMENDATIONS["software"])
+    skills = extracted.get("skills", [])[:6]
+
+    primary_role = normalize_role_name(predicted_category) if predicted_category else choices[0]
+    if not primary_role:
+        primary_role = choices[0]
+
+    role_recs = [
+        {
+            "role": primary_role,
+            "confidence": round(max(0.55, category_confidence), 2),
+            "reason": [
+                f"Resume signals align with {family or 'software'} work.",
+                f"Detected skills: {', '.join(skills) if skills else 'general technical background'}.",
+            ],
+            "bestFor": [family or "software"],
+        }
+    ]
+
+    for role in choices[1:3]:
+        role_recs.append({
+            "role": role,
+            "confidence": 0.58,
+            "reason": [f"Shares a similar skill base with the {family or 'software'} family."],
+            "bestFor": [family or "software"],
+        })
+
+    return role_recs
+
+
+def build_resume_issues(resume_text: str, extracted: dict):
+    issues = []
+    lowered = resume_text.lower()
+
+    if not extracted.get("name"):
+        issues.append("Your resume does not clearly expose a candidate name in the extracted text.")
+    if not extracted.get("email") or not extracted.get("phone"):
+        issues.append("Contact details are incomplete or not easy to detect.")
+    if len(extracted.get("skills", [])) < 3:
+        issues.append("Only a small number of concrete skills were detected.")
+    if not extracted.get("education"):
+        issues.append("No education section was clearly detected.")
+    if not re.search(r'\b(project|built|implemented|developed|designed|led|improved|reduced|increased|delivered)\b', lowered):
+        issues.append("No strong action verbs or project outcomes were detected.")
+    if not re.search(r'\b\d+%|\b\d+\s*(?:projects?|users?|clients?|customers?|revenue|cost|sales)\b', lowered):
+        issues.append("The resume does not show enough measurable impact.")
+    if len(resume_text.split()) < 120:
+        issues.append("The resume text looks short; important achievements may be missing.")
+
+    return issues[:6]
+
+
+def build_skill_gaps(resume_text: str, extracted: dict, family: str):
+    gaps = []
+    lowered = resume_text.lower()
+    keywords = ROLE_SKILL_GAPS.get(family or "software", ROLE_SKILL_GAPS["software"])
+    skills = {skill.lower() for skill in extracted.get("skills", [])}
+
+    for keyword in keywords:
+        if keyword not in lowered and keyword not in skills:
+            gaps.append(keyword)
+
+    if not gaps:
+        gaps.extend(["quantified achievements", "project outcomes", "strong technical summary"])
+
+    return gaps[:8]
+
+
+def build_strengths(extracted: dict, predicted_category: str):
+    strengths = []
+    skills = extracted.get("skills", [])
+    if skills:
+        strengths.append(f"Detected skills: {', '.join(skills[:6])}.")
+    if extracted.get("education"):
+        strengths.append(f"Education signals found: {', '.join(extracted.get('education', []))}.")
+    if extracted.get("totalExperienceYears", 0):
+        strengths.append(f"Experience signal: about {extracted.get('totalExperienceYears', 0)} years.")
+    if predicted_category:
+        strengths.append(f"Best-fit role signal: {normalize_role_name(predicted_category)}.")
+    return strengths[:5]
+
+
+def build_improvement_plan(issues: list, extracted: dict):
+    plan = []
+    if any("Contact details" in issue for issue in issues):
+        plan.append("Add your name, phone number, and email at the top in a clean header.")
+    if any("measurable impact" in issue for issue in issues):
+        plan.append("Rewrite project bullets with numbers, percentages, or business outcomes.")
+    if any("action verbs" in issue for issue in issues):
+        plan.append("Use strong verbs such as built, automated, reduced, shipped, and improved.")
+    if any("short" in issue for issue in issues):
+        plan.append("Expand the resume with projects, internships, or case studies." )
+    if len(extracted.get("skills", [])) < 3:
+        plan.append("Add a focused skills section with tools, frameworks, and domain keywords.")
+    if not extracted.get("education"):
+        plan.append("Include your education section or relevant certifications if available.")
+    if not plan:
+        plan.append("Polish the summary and keep only role-relevant achievements.")
+
+    return plan[:6]
 
 
 def predict_category(resume_text: str):
@@ -303,10 +562,6 @@ def analyze():
         if len(resume_text.strip()) < 10:
             print(f"[WARN] Resume text too short. Content: {resume_text}")
         
-        # Compute similarity
-        score, matched, missing = compute_tfidf_similarity(resume_text, job_description)
-        print(f"[DEBUG] Similarity score: {score}%, matched: {len(matched)}, missing: {len(missing)}")
-        
         # Extract entities
         extracted = extract_entities(resume_text)
         
@@ -316,25 +571,70 @@ def analyze():
             extracted["predictedCategory"] = predicted_category
             extracted["categoryConfidence"] = round(category_confidence, 4)
 
-        job_family = extract_job_family(job_description)
+        job_family = extract_job_family(job_description) if job_description.strip() else infer_job_family_from_resume(resume_text, extracted)
         if job_family:
             extracted["jobFamily"] = job_family
 
-        # Boost the score with model-based alignment so short JDs still get useful results.
-        score = min(100, score + score_category_alignment(predicted_category, job_family))
-        if score < 10 and resume_text.strip():
-            score = 10
+        if job_description.strip():
+            # Compute similarity when a JD is supplied.
+            score, matched, missing = compute_tfidf_similarity(resume_text, job_description)
+            print(f"[DEBUG] Similarity score: {score}%, matched: {len(matched)}, missing: {len(missing)}")
+            score = min(100, score + score_category_alignment(predicted_category, job_family))
+            if score < 10 and resume_text.strip():
+                score = 10
+        else:
+            matched = extracted.get("skills", [])[:8]
+            missing = build_skill_gaps(resume_text, extracted, job_family)
+            score = build_resume_quality_score(resume_text, extracted, predicted_category, category_confidence)
         
         # Generate recommendations
-        recommendations = generate_recommendations(score, missing, resume_text)
-        if predicted_category and predicted_category not in (job_family or "").upper():
-            recommendations.append(f"Your resume looks closer to {predicted_category}. Consider tailoring it for the target role.")
+        if EMBEDDINGS_AVAILABLE:
+            semantic_scores = compute_semantic_role_scores(resume_text)
+            role_recommendations = []
+            # build role entries from semantic family scores
+            for score_entry in semantic_scores[:4]:
+                family = score_entry.get('family')
+                fam_score = score_entry.get('score', 0.0)
+                choices = ROLE_RECOMMENDATIONS.get(family, ROLE_RECOMMENDATIONS['software'])
+                # primary role is first choice
+                primary = choices[0] if choices else normalize_role_name(predicted_category) or 'Suggested role'
+                role_recommendations.append({
+                    'role': primary,
+                    'confidence': round(float(max(0.35, fam_score)), 2),
+                    'reason': [f"Semantic similarity to {family} roles (score {round(fam_score,3)})", f"Evidence: {score_entry.get('evidence') or 'N/A'}"],
+                    'bestFor': [family]
+                })
+                # also include one alternate
+                for alt in choices[1:2]:
+                    role_recommendations.append({
+                        'role': alt,
+                        'confidence': round(float(max(0.32, fam_score * 0.9)), 2),
+                        'reason': [f"Related to {family} skill base."],
+                        'bestFor': [family]
+                    })
+        else:
+            role_recommendations = build_role_recommendations(resume_text, extracted, predicted_category, category_confidence)
+        resume_issues = build_resume_issues(resume_text, extracted)
+        strengths = build_strengths(extracted, predicted_category)
+        improvement_plan = build_improvement_plan(resume_issues, extracted)
+        if job_description.strip():
+            recommendations = generate_recommendations(score, missing, resume_text)
+            if predicted_category and predicted_category not in (job_family or "").upper():
+                recommendations.append(f"Your resume looks closer to {predicted_category}. Consider tailoring it for the target role.")
+        else:
+            recommendations = improvement_plan
         
         return jsonify({
             "score": score,
+            "analysisMode": "resume-to-role" if not job_description.strip() else "resume-vs-job-description",
             "matchedKeywords": matched[:30],
             "missingKeywords": missing[:30],
+            "skillGaps": missing[:30],
             "recommendations": recommendations,
+            "roleRecommendations": role_recommendations,
+            "resumeIssues": resume_issues,
+            "strengthSignals": strengths,
+            "improvementPlan": improvement_plan,
             "extracted": extracted
         })
     except Exception as exc:

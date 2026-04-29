@@ -1,0 +1,9 @@
+{
+  "name": "cloud-resume-analyzer-frontend",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "python -m http.server 5500",
+    "start": "python -m http.server 5500"
+  }
+}

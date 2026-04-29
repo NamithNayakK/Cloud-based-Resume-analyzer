@@ -1,10 +1,12 @@
 import os
 import io
 import uuid
+from pathlib import Path
 from datetime import datetime, timezone
 
 import httpx
 import boto3
+import numpy as np
 from dotenv import load_dotenv
 from pypdf import PdfReader
 from fastapi import FastAPI, UploadFile, File, Form, HTTPException
@@ -12,11 +14,17 @@ from fastapi.middleware.cors import CORSMiddleware
 from docx import Document
 from botocore.exceptions import ClientError
 from botocore.config import Config
+import pypdfium2 as pdfium
 
 try:
     import pdfplumber
 except Exception:
     pdfplumber = None
+
+try:
+    from rapidocr_onnxruntime import RapidOCR
+except Exception:
+    RapidOCR = None
 
 # Load environment variables from .env
 load_dotenv()
@@ -28,6 +36,8 @@ MINIO_ACCESS_KEY = os.getenv("MINIO_ACCESS_KEY", "")
 MINIO_SECRET_KEY = os.getenv("MINIO_SECRET_KEY", "")
 MINIO_BUCKET_NAME = os.getenv("MINIO_BUCKET_NAME", "resumes")
 MINIO_USE_SSL = os.getenv("MINIO_USE_SSL", "False").lower() == "true"
+
+OCR_ENGINE = RapidOCR() if RapidOCR is not None else None
 
 app = FastAPI(title="Cloud Resume Analyzer API")
 
@@ -86,6 +96,32 @@ async def ensure_minio_bucket():
         print(f"[WARN] MinIO bucket check skipped: {exc}")
 
 
+def ocr_pdf_text(file_bytes: bytes, page_limit: int = 3) -> str:
+    if OCR_ENGINE is None:
+        return ""
+
+    try:
+        pdf = pdfium.PdfDocument(io.BytesIO(file_bytes))
+        page_count = min(len(pdf), page_limit)
+        page_texts = []
+
+        for index in range(page_count):
+            page = pdf[index]
+            bitmap = page.render(scale=2)
+            image = np.array(bitmap.to_pil())
+            ocr_result, _ = OCR_ENGINE(image)
+            lines = [item[1].strip() for item in (ocr_result or []) if len(item) > 1 and item[1].strip()]
+            if lines:
+                page_texts.append("\n".join(lines))
+
+        text = "\n".join(page_texts)
+        print(f"[INFO] OCR extracted {len(text)} characters from PDF")
+        return text
+    except Exception as exc:
+        print(f"[WARN] OCR fallback failed: {exc}")
+        return ""
+
+
 # Parse uploaded resume file into plain text for downstream ML analysis.
 async def parse_resume(file: UploadFile, file_bytes: bytes) -> str:
     try:
@@ -110,6 +146,11 @@ async def parse_resume(file: UploadFile, file_bytes: bytes) -> str:
                 fallback_text = "\n".join(fallback_pages)
                 if len(fallback_text.strip()) > len(text.strip()):
                     text = fallback_text
+            if len(text.strip()) < 50:
+                print("[WARN] PDF appears to be image-only. Trying OCR fallback.")
+                ocr_text = ocr_pdf_text(file_bytes)
+                if len(ocr_text.strip()) > len(text.strip()):
+                    text = ocr_text
             print(f"[INFO] Extracted {len(text)} characters from PDF")
             return text
 
@@ -159,30 +200,69 @@ async def upload_to_minio(file: UploadFile, file_bytes: bytes):
     except Exception as exc:
         print(f"[WARN] MinIO upload failed, falling back to local metadata: {exc}")
         key = f"{uuid.uuid4()}-{file.filename}"
-        return {
-            "minioKey": key,
-            "minioUrl": f"local://{key}",
-        }
+        # Persist the file locally so we don't lose the uploaded bytes.
+        try:
+            uploads_dir = Path(__file__).parent / "uploads"
+            uploads_dir.mkdir(parents=True, exist_ok=True)
+            local_path = uploads_dir / key
+            with local_path.open("wb") as fh:
+                fh.write(file_bytes)
+            file_url = f"file://{local_path.resolve()}"
+            print(f"[INFO] Saved uploaded file locally to {local_path}")
+            return {
+                "minioKey": key,
+                "minioUrl": file_url,
+            }
+        except Exception as write_exc:
+            print(f"[ERROR] Failed to persist file locally: {write_exc}")
+            return {
+                "minioKey": key,
+                "minioUrl": f"local://{key}",
+            }
 
 
 # Call Flask ML microservice to compute semantic score and entity extraction.
 async def call_ml_service(resume_text: str, job_description: str):
+    last_error = None
     try:
         print("[INFO] Calling ML service for analysis.")
-        async with httpx.AsyncClient(timeout=45.0) as client:
-            response = await client.post(
-                f"{FLASK_SERVICE_URL}/analyze",
-                json={
-                    "resumeText": resume_text,
-                    "jobDescription": job_description,
-                },
-            )
-            response.raise_for_status()
-            print("[INFO] ML service response received.")
-            return response.json()
+        async with httpx.AsyncClient(timeout=httpx.Timeout(45.0, connect=5.0)) as client:
+            for attempt in range(1, 4):
+                try:
+                    response = await client.post(
+                        f"{FLASK_SERVICE_URL}/analyze",
+                        json={
+                            "resumeText": resume_text,
+                            "jobDescription": job_description,
+                        },
+                    )
+                    response.raise_for_status()
+                    print("[INFO] ML service response received.")
+                    return response.json()
+                except httpx.HTTPStatusError as exc:
+                    last_error = exc
+                    status_code = exc.response.status_code
+                    body = exc.response.text[:500]
+                    print(f"[WARN] ML service returned {status_code} on attempt {attempt}: {body}")
+                    if status_code < 500 or attempt == 3:
+                        raise HTTPException(
+                            status_code=502,
+                            detail=f"ML service returned {status_code}.",
+                        )
+                except (httpx.ConnectError, httpx.ReadTimeout, httpx.RemoteProtocolError) as exc:
+                    last_error = exc
+                    print(f"[WARN] ML service attempt {attempt} failed: {exc}")
+                    if attempt == 3:
+                        raise HTTPException(status_code=502, detail="Failed to connect to ML service.")
+    except HTTPException:
+        raise
     except httpx.HTTPError as exc:
+        last_error = exc
         print(f"[ERROR] ML service call failed: {exc}")
         raise HTTPException(status_code=502, detail="Failed to connect to ML service.")
+    finally:
+        if last_error is not None:
+            print(f"[INFO] ML service last error: {last_error}")
 
 
 
@@ -229,7 +309,12 @@ async def analyze_resume(
             "overallScore": ml_result.get("score", 0),
             "matchedKeywords": ml_result.get("matchedKeywords", []),
             "missingKeywords": ml_result.get("missingKeywords", []),
+            "skillGaps": ml_result.get("skillGaps", []),
             "recommendations": ml_result.get("recommendations", []),
+            "roleRecommendations": ml_result.get("roleRecommendations", []),
+            "resumeIssues": ml_result.get("resumeIssues", []),
+            "strengthSignals": ml_result.get("strengthSignals", []),
+            "improvementPlan": ml_result.get("improvementPlan", []),
         }
 
         print("[INFO] Analyze flow completed.")

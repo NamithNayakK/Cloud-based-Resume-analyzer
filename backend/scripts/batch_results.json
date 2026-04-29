@@ -1,0 +1,357 @@
+{
+  "artist .pdf": {
+    "message": "Resume analyzed successfully.",
+    "resumeId": "a22c2e51-91e5-43ed-94c4-f501fcc7cd99",
+    "uploadedAt": "2026-04-29T13:27:19.846585+00:00",
+    "file": {
+      "originalName": "artist .pdf",
+      "minioKey": "071f91c3-7612-485c-be36-2cc3c475f156-artist .pdf",
+      "minioUrl": "local://071f91c3-7612-485c-be36-2cc3c475f156-artist .pdf",
+      "fileType": "application/pdf",
+      "fileSizeKb": 642.76
+    },
+    "analysis": {
+      "score": 25,
+      "overallScore": 25,
+      "matchedKeywords": [
+        "api"
+      ],
+      "missingKeywords": [
+        "software",
+        "engine",
+        "role",
+        "requir",
+        "python",
+        "rest",
+        "dock",
+        "cloud",
+        "deployment",
+        "test",
+        "scalable",
+        "backend",
+        "architecture"
+      ],
+      "recommendations": [
+        "Resume has low similarity with the job description. Add role-specific content.",
+        "Add missing keywords: software, engine, role, requir, python, rest, dock, cloud",
+        "Add quantified achievements and project outcomes to strengthen impact.",
+        "Your resume looks closer to SOFTWARE-ENGINEER. Consider tailoring it for the target role."
+      ]
+    },
+    "extracted": {
+      "categoryConfidence": 1.0,
+      "education": [
+        "bachelor",
+        "university"
+      ],
+      "email": "hello@reallygreatsite.com",
+      "experience": [],
+      "jobFamily": "software",
+      "name": "",
+      "phone": "2022-2025123-45",
+      "predictedCategory": "SOFTWARE-ENGINEER",
+      "skills": [
+        "api",
+        "c",
+        "git"
+      ],
+      "totalExperienceYears": 0
+    }
+  },
+  "ATS Friendly Modern CV Resume.pdf": {
+    "message": "Resume analyzed successfully.",
+    "resumeId": "d8e80303-5722-4529-b499-530281aa52d9",
+    "uploadedAt": "2026-04-29T13:28:09.927720+00:00",
+    "file": {
+      "originalName": "ATS Friendly Modern CV Resume.pdf",
+      "minioKey": "47f0b93f-52dd-427b-bc0f-2388cceea90d-ATS Friendly Modern CV Resume.pdf",
+      "minioUrl": "local://47f0b93f-52dd-427b-bc0f-2388cceea90d-ATS Friendly Modern CV Resume.pdf",
+      "fileType": "application/pdf",
+      "fileSizeKb": 215.29
+    },
+    "analysis": {
+      "score": 15,
+      "overallScore": 15,
+      "matchedKeywords": [
+        "test"
+      ],
+      "missingKeywords": [
+        "software",
+        "engine",
+        "role",
+        "requir",
+        "python",
+        "rest",
+        "api",
+        "dock",
+        "cloud",
+        "deployment",
+        "scalable",
+        "backend",
+        "architecture"
+      ],
+      "recommendations": [
+        "Resume has low similarity with the job description. Add role-specific content.",
+        "Add missing keywords: software, engine, role, requir, python, rest, api, dock",
+        "Your resume looks closer to AUTOMOBILE. Consider tailoring it for the target role."
+      ]
+    },
+    "extracted": {
+      "categoryConfidence": 0.5105,
+      "education": [
+        "bachelor",
+        "university"
+      ],
+      "email": "hello@reallygreatsite.com",
+      "experience": [],
+      "jobFamily": "software",
+      "name": "",
+      "phone": "123-456-7890",
+      "predictedCategory": "AUTOMOBILE",
+      "skills": [
+        "c"
+      ],
+      "totalExperienceYears": 0
+    }
+  },
+  "cybersecurity .pdf": {
+    "message": "Resume analyzed successfully.",
+    "resumeId": "f50ccafa-9a21-4c60-9fbe-325edbd042e5",
+    "uploadedAt": "2026-04-29T13:28:58.660540+00:00",
+    "file": {
+      "originalName": "cybersecurity .pdf",
+      "minioKey": "935da970-dd07-4eee-b085-8ad2ab78507d-cybersecurity .pdf",
+      "minioUrl": "local://935da970-dd07-4eee-b085-8ad2ab78507d-cybersecurity .pdf",
+      "fileType": "application/pdf",
+      "fileSizeKb": 748.83
+    },
+    "analysis": {
+      "score": 15,
+      "overallScore": 15,
+      "matchedKeywords": [
+        "test"
+      ],
+      "missingKeywords": [
+        "software",
+        "engine",
+        "role",
+        "requir",
+        "python",
+        "rest",
+        "api",
+        "dock",
+        "cloud",
+        "deployment",
+        "scalable",
+        "backend",
+        "architecture"
+      ],
+      "recommendations": [
+        "Resume has low similarity with the job description. Add role-specific content.",
+        "Add missing keywords: software, engine, role, requir, python, rest, api, dock",
+        "Your resume looks closer to AUTOMOBILE. Consider tailoring it for the target role."
+      ]
+    },
+    "extracted": {
+      "categoryConfidence": 0.98,
+      "education": [
+        "university"
+      ],
+      "email": "hello@reallygreatsite.com",
+      "experience": [],
+      "jobFamily": "software",
+      "name": "",
+      "phone": "123-456-7890",
+      "predictedCategory": "AUTOMOBILE",
+      "skills": [
+        "c"
+      ],
+      "totalExperienceYears": 0
+    }
+  },
+  "dancer.pdf": {
+    "error": "timed out"
+  },
+  "finance.pdf": {
+    "message": "Resume analyzed successfully.",
+    "resumeId": "dc66a03f-1af0-40bb-8fa5-74573483c151",
+    "uploadedAt": "2026-04-29T13:31:23.841344+00:00",
+    "file": {
+      "originalName": "finance.pdf",
+      "minioKey": "cc7ba54f-d660-4419-8252-1e34e9967477-finance.pdf",
+      "minioUrl": "local://cc7ba54f-d660-4419-8252-1e34e9967477-finance.pdf",
+      "fileType": "application/pdf",
+      "fileSizeKb": 249.25
+    },
+    "analysis": {
+      "score": 10,
+      "overallScore": 10,
+      "matchedKeywords": [],
+      "missingKeywords": [
+        "software",
+        "engine",
+        "role",
+        "requir",
+        "python",
+        "rest",
+        "api",
+        "dock",
+        "cloud",
+        "deployment",
+        "test",
+        "scalable",
+        "backend",
+        "architecture"
+      ],
+      "recommendations": [
+        "Resume has low similarity with the job description. Add role-specific content.",
+        "Add missing keywords: software, engine, role, requir, python, rest, api, dock",
+        "Add quantified achievements and project outcomes to strengthen impact.",
+        "Your resume looks closer to BPO. Consider tailoring it for the target role."
+      ]
+    },
+    "extracted": {
+      "categoryConfidence": 0.5351,
+      "education": [
+        "master",
+        "university"
+      ],
+      "email": "",
+      "experience": [],
+      "jobFamily": "software",
+      "name": "",
+      "phone": "+124-4236-7894",
+      "predictedCategory": "BPO",
+      "skills": [
+        "c"
+      ],
+      "totalExperienceYears": 0
+    }
+  },
+  "mechanical engineer.pdf": {
+    "message": "Resume analyzed successfully.",
+    "resumeId": "a22de9bf-d65e-4b64-876a-08d52e4c18cb",
+    "uploadedAt": "2026-04-29T13:46:00.428098+00:00",
+    "file": {
+      "originalName": "mechanical engineer.pdf",
+      "minioKey": "d062cae7-296f-4146-aed1-8b45f0e3a7ca-mechanical engineer.pdf",
+      "minioUrl": "local://d062cae7-296f-4146-aed1-8b45f0e3a7ca-mechanical engineer.pdf",
+      "fileType": "application/pdf",
+      "fileSizeKb": 193.01
+    },
+    "analysis": {
+      "score": 17,
+      "overallScore": 17,
+      "matchedKeywords": [
+        "engine"
+      ],
+      "missingKeywords": [
+        "software",
+        "role",
+        "requir",
+        "python",
+        "rest",
+        "api",
+        "dock",
+        "cloud",
+        "deployment",
+        "test",
+        "scalable",
+        "backend",
+        "architecture"
+      ],
+      "recommendations": [
+        "Resume has low similarity with the job description. Add role-specific content.",
+        "Add missing keywords: software, role, requir, python, rest, api, dock, cloud",
+        "Your resume looks closer to DESIGNER. Consider tailoring it for the target role."
+      ]
+    },
+    "extracted": {
+      "categoryConfidence": 0.5393,
+      "education": [
+        "bachelor",
+        "college",
+        "master",
+        "university"
+      ],
+      "email": "hello@reallygreatsite.com",
+      "experience": [],
+      "jobFamily": "software",
+      "name": "",
+      "phone": "123-456-7890",
+      "predictedCategory": "DESIGNER",
+      "skills": [
+        "c"
+      ],
+      "totalExperienceYears": 0
+    }
+  },
+  "modeling  (1).pdf": {
+    "error": "timed out"
+  },
+  "product management.pdf": {
+    "error": "timed out"
+  },
+  "resume sample 1.pdf": {
+    "message": "Resume analyzed successfully.",
+    "resumeId": "bf691c64-c5ba-41a1-9564-6c00cb482823",
+    "uploadedAt": "2026-04-29T13:53:20.459567+00:00",
+    "file": {
+      "originalName": "resume sample 1.pdf",
+      "minioKey": "bfcb3ce9-1729-4709-8b73-d62fca035d86-resume sample 1.pdf",
+      "minioUrl": "local://bfcb3ce9-1729-4709-8b73-d62fca035d86-resume sample 1.pdf",
+      "fileType": "application/pdf",
+      "fileSizeKb": 519.94
+    },
+    "analysis": {
+      "score": 41,
+      "overallScore": 41,
+      "matchedKeywords": [
+        "software",
+        "engine",
+        "cloud"
+      ],
+      "missingKeywords": [
+        "role",
+        "requir",
+        "python",
+        "rest",
+        "api",
+        "dock",
+        "deployment",
+        "test",
+        "scalable",
+        "backend",
+        "architecture"
+      ],
+      "recommendations": [
+        "Good foundation. Strengthen alignment by adding more job-specific keywords.",
+        "Add missing keywords: role, requir, python, rest, api, dock, deployment, test",
+        "Add quantified achievements and project outcomes to strengthen impact.",
+        "Your resume looks closer to SOFTWARE-ENGINEER. Consider tailoring it for the target role."
+      ]
+    },
+    "extracted": {
+      "categoryConfidence": 1.0,
+      "education": [
+        "bachelor",
+        "university"
+      ],
+      "email": "hello@reallygreatsite.com",
+      "experience": [],
+      "jobFamily": "software",
+      "name": "",
+      "phone": "123-456-7890",
+      "predictedCategory": "SOFTWARE-ENGINEER",
+      "skills": [
+        "c",
+        "cloud"
+      ],
+      "totalExperienceYears": 0
+    }
+  },
+  "White Simple Student CV Resume.pdf": {
+    "status_code": 502,
+    "text": "{\"detail\":\"Failed to connect to ML service.\"}"
+  }
+}

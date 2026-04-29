@@ -155,6 +155,42 @@ h1 {
   color: var(--muted);
 }
 
+.history-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.role-row {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.role-conf {
+  font-weight: 600;
+  color: var(--muted);
+  font-size: 0.92rem;
+}
+
+.role-reasons {
+  margin: 8px 0 0 14px;
+  padding-left: 12px;
+  color: var(--muted);
+  font-size: 0.92rem;
+}
+
+.evidence-snippet {
+  margin: 8px 0 0 12px;
+  padding: 8px 10px;
+  border-left: 3px solid rgba(12,122,108,0.18);
+  background: rgba(12,122,108,0.04);
+  color: var(--brand-strong);
+  font-style: italic;
+  border-radius: 6px;
+}
+
 .analyzer-form {
   margin-top: 14px;
 }
@@ -467,6 +503,22 @@ ul {
 
 .hidden {
   display: none;
+}
+
+@media (max-width: 720px) {
+  .history-head {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .history-head button {
+    width: 100%;
+  }
+
+  .history-item {
+    align-items: flex-start;
+    flex-direction: column;
+  }
 }
 
 .reveal {
