@@ -1,0 +1,27 @@
+Name: John Developer
+Email: john@example.com
+Phone: (555) 123-4567
+
+Professional Summary
+Backend engineer with 5 years of experience building scalable cloud applications using Node.js, Python, and AWS.
+
+Skills
+- Programming: Node.js, Python, JavaScript, SQL
+- Cloud: AWS, MinIO, Docker, Kubernetes
+- Databases: PostgreSQL, MongoDB, Redis
+- Other: REST APIs, Microservices, CI/CD
+
+Experience
+Senior Backend Developer at TechCorp (2021-2026)
+- Built microservices architecture supporting 1M+ users
+- Reduced API latency by 40% through optimization
+- Led team of 3 engineers on cloud migration project
+
+Junior Developer at StartupXYZ (2019-2021)
+- Developed REST APIs for web and mobile applications
+- Implemented automated testing increasing coverage by 60%
+- Deployed applications to AWS
+
+Education
+B.S. Computer Science - State University (2019)
+Relevant Certifications: AWS Solutions Architect Associate
