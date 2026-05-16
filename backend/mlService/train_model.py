@@ -12,8 +12,9 @@ from collections import Counter
 import os
 
 # Path configuration
-CSV_PATH = r"c:\Users\pramukh\Downloads\Resume.csv"
-MODEL_OUTPUT_DIR = r"d:\Resume\cloud-resume-analyzer\backend\mlService\models"
+BASE_DIR = os.path.dirname(__file__)
+CSV_PATH = os.path.join(BASE_DIR, "dataset.csv")
+MODEL_OUTPUT_DIR = os.path.join(BASE_DIR, "models")
 
 # Create model directory if missing
 os.makedirs(MODEL_OUTPUT_DIR, exist_ok=True)

@@ -292,6 +292,36 @@ def extract_entities(text: str):
     return result
 
 
+def extract_skill_evidence(text: str, skills: list):
+    """Return evidence sentences for each detected skill."""
+    sentences = [s.strip() for s in re.split(r'[\.\n;]+', text) if s.strip()]
+    evidence = []
+    for skill in skills:
+        matches = [sentence for sentence in sentences if skill in sentence.lower()]
+        evidence.append({
+            "skill": skill,
+            "confidence": 50 + min(40, len(matches) * 15),
+            "evidence": matches[:3],
+        })
+    return evidence
+
+
+def compute_resume_trust(score: int, extracted: dict):
+    trust = score
+    trust += min(15, extracted.get("totalExperienceYears", 0) * 2)
+    trust += min(15, len(extracted.get("skills", [])) * 2)
+    if extracted.get("name") and extracted.get("email"):
+        trust += 5
+    return max(10, min(100, trust))
+
+
+def compute_skill_density(text: str, skills: list):
+    tokens = tokenize(text)
+    if not tokens:
+        return 0
+    return round(len(skills) / len(tokens) * 100, 1)
+
+
 def extract_job_family(job_description: str):
     """Infer a broad job family from the job description."""
     jd = job_description.lower()
@@ -588,53 +618,16 @@ def analyze():
             score = build_resume_quality_score(resume_text, extracted, predicted_category, category_confidence)
         
         # Generate recommendations
-        if EMBEDDINGS_AVAILABLE:
-            semantic_scores = compute_semantic_role_scores(resume_text)
-            role_recommendations = []
-            # build role entries from semantic family scores
-            for score_entry in semantic_scores[:4]:
-                family = score_entry.get('family')
-                fam_score = score_entry.get('score', 0.0)
-                choices = ROLE_RECOMMENDATIONS.get(family, ROLE_RECOMMENDATIONS['software'])
-                # primary role is first choice
-                primary = choices[0] if choices else normalize_role_name(predicted_category) or 'Suggested role'
-                role_recommendations.append({
-                    'role': primary,
-                    'confidence': round(float(max(0.35, fam_score)), 2),
-                    'reason': [f"Semantic similarity to {family} roles (score {round(fam_score,3)})", f"Evidence: {score_entry.get('evidence') or 'N/A'}"],
-                    'bestFor': [family]
-                })
-                # also include one alternate
-                for alt in choices[1:2]:
-                    role_recommendations.append({
-                        'role': alt,
-                        'confidence': round(float(max(0.32, fam_score * 0.9)), 2),
-                        'reason': [f"Related to {family} skill base."],
-                        'bestFor': [family]
-                    })
-        else:
-            role_recommendations = build_role_recommendations(resume_text, extracted, predicted_category, category_confidence)
-        resume_issues = build_resume_issues(resume_text, extracted)
-        strengths = build_strengths(extracted, predicted_category)
-        improvement_plan = build_improvement_plan(resume_issues, extracted)
-        if job_description.strip():
-            recommendations = generate_recommendations(score, missing, resume_text)
-            if predicted_category and predicted_category not in (job_family or "").upper():
-                recommendations.append(f"Your resume looks closer to {predicted_category}. Consider tailoring it for the target role.")
-        else:
-            recommendations = improvement_plan
+        recommendations = generate_recommendations(score, missing, resume_text)
+        if predicted_category and predicted_category not in (job_family or "").upper():
+            recommendations.append(f"Your resume looks closer to {predicted_category}. Consider tailoring it for the target role.")
         
         return jsonify({
             "score": score,
-            "analysisMode": "resume-to-role" if not job_description.strip() else "resume-vs-job-description",
             "matchedKeywords": matched[:30],
             "missingKeywords": missing[:30],
             "skillGaps": missing[:30],
             "recommendations": recommendations,
-            "roleRecommendations": role_recommendations,
-            "resumeIssues": resume_issues,
-            "strengthSignals": strengths,
-            "improvementPlan": improvement_plan,
             "extracted": extracted
         })
     except Exception as exc:

@@ -94,7 +94,19 @@ npm run dev
 
 Open browser: **http://localhost:5500**
 
+<<<<<<< HEAD
 ### 4. Start ML Service (Optional but Recommended)
+=======
+## 2.1) ML Service
+
+A separate ML analyzer service lives in `backend/mlService`. Run it with Python if you want richer role prediction, skill extraction, and explainable resume analysis.
+
+## 2.2) Blockchain Verification
+
+A blockchain verification layer is available under `backend/blockchain`. It includes a `ResumeVerification` Solidity contract and deployment script for a local Hardhat network.
+
+## API Endpoints
+>>>>>>> dd0acc4 (updated code but with errors)
 
 ```powershell
 cd backend/mlService

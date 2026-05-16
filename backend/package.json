@@ -1,7 +1,7 @@
 {
   "name": "cloud-resume-analyzer-backend",
   "version": "1.0.0",
-  "description": "Basic backend for Cloud Based Resume Analyzer mini project",
+  "description": "Backend for Cloud Based Resume Analyzer with ML and blockchain support",
   "main": "src/server.js",
   "type": "commonjs",
   "scripts": {
@@ -10,7 +10,12 @@
   },
   "dependencies": {
     "cors": "^2.8.5",
+<<<<<<< HEAD
     "dotenv": "^16.4.4",
+=======
+    "dotenv": "^16.3.1",
+    "ethers": "^6.12.0",
+>>>>>>> dd0acc4 (updated code but with errors)
     "express": "^4.19.2",
     "multer": "^2.0.0",
     "minio": "^7.0.18"

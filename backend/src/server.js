@@ -1,4 +1,5 @@
 require('dotenv').config();
+<<<<<<< HEAD
 
 const express = require('express');
 const cors = require('cors');
@@ -8,6 +9,17 @@ const Minio = require('minio');
 const app = express();
 const PORT = process.env.PORT || 5000;
 const MINIO_BUCKET = process.env.MINIO_BUCKET_NAME || 'resume-analyzer-bucket';
+=======
+const express = require('express');
+const cors = require('cors');
+const multer = require('multer');
+const crypto = require('crypto');
+const { storeResumeHash, verifyResumeHash } = require('./blockchainService');
+
+const app = express();
+const PORT = parseInt(process.env.PORT, 10) || 5000;
+const ML_SERVICE_URL = process.env.ML_SERVICE_URL || 'http://localhost:5001';
+>>>>>>> dd0acc4 (updated code but with errors)
 
 app.use(cors());
 app.use(express.json());
@@ -312,16 +324,56 @@ function generateRoleRecommendations(signals, jobFamily) {
   return roles.slice(0, 4);
 }
 
-function analyzeResume(resumeText, jobDescription) {
+function extractSkills(text) {
+  const skills = [
+    'python', 'java', 'javascript', 'node', 'react', 'sql', 'aws', 'azure', 'docker',
+    'kubernetes', 'fastapi', 'flask', 'django', 'git', 'linux', 'html', 'css', 'mongodb',
+    'postgresql', 'mysql', 'rest', 'api', 'microservices', 'kafka', 'redis', 'machine learning',
+    'data science', 'excel', 'power bi', 'tableau', 'cloud', 'devops', 'spring', 'c', 'c++',
+  ];
+
+  const normalized = text.toLowerCase();
+  return skills.filter((skill) => normalized.includes(skill)).slice(0, 20);
+}
+
+function buildEvidence(text, skills) {
+  const sentences = text
+    .split(/(?<=[.!?\n])/)
+    .map((s) => s.trim())
+    .filter(Boolean);
+
+  return skills.map((skill) => {
+    const evidence = sentences.filter((sentence) => sentence.toLowerCase().includes(skill.toLowerCase()));
+    return {
+      skill,
+      confidence: evidence.length > 0 ? Math.min(98, 60 + evidence.length * 10) : 40,
+      evidence: evidence.slice(0, 3),
+    };
+  });
+}
+
+function computeTrustScore(score, experienceYears, skillsCount) {
+  let trust = Math.round(score * 0.7 + experienceYears * 2 + skillsCount * 2);
+  if (trust > 100) trust = 100;
+  if (trust < 10) trust = 10;
+  return trust;
+}
+
+function computeSkillDensity(skills, resumeText) {
+  const tokenCount = tokenize(resumeText).length || 1;
+  return Math.round((skills.length / tokenCount) * 1000) / 10;
+}
+
+function analyzeResumeLocal(resumeText, jobDescription) {
   const resumeTokens = tokenize(resumeText);
   const jdTokens = tokenize(jobDescription);
-
   const resumeTokenSet = new Set(resumeTokens);
   const uniqueJdTokens = [...new Set(jdTokens)].filter((word) => word.length > 3);
 
   const matchedKeywords = uniqueJdTokens.filter((word) => resumeTokenSet.has(word));
   const missingKeywords = uniqueJdTokens.filter((word) => !resumeTokenSet.has(word));
 
+<<<<<<< HEAD
   // Calculate match percentage
   const matchPercentage = uniqueJdTokens.length === 0
     ? 0
@@ -354,14 +406,25 @@ function analyzeResume(resumeText, jobDescription) {
   const recommendations = [];
   if (matchPercentage < 40) {
     recommendations.push('Improve alignment with job description by adding relevant technical skills.');
+=======
+  const score = uniqueJdTokens.length === 0
+    ? 15
+    : Math.round((matchedKeywords.length / uniqueJdTokens.length) * 100);
+
+  const skills = extractSkills(resumeText);
+  const recommendations = [];
+  if (score < 40) {
+    recommendations.push('Improve alignment with the job description by adding relevant technical skills and accomplishments.');
+>>>>>>> dd0acc4 (updated code but with errors)
   }
   if (missingKeywords.length > 0) {
-    recommendations.push('Include measurable projects and keywords: ' + missingKeywords.slice(0, 8).join(', ') + '.');
+    recommendations.push('Consider adding these keywords: ' + missingKeywords.slice(0, 8).join(', ') + '.');
   }
-  if (!/project|experience|internship/i.test(resumeText)) {
-    recommendations.push('Add a dedicated Experience or Projects section to strengthen your resume.');
+  if (!/project|experience|internship|achievement|delivered|built/i.test(resumeText)) {
+    recommendations.push('Add quantifiable achievements and project outcomes to improve impact.');
   }
 
+<<<<<<< HEAD
   // Generate analysis sections
   const resumeIssues = generateResumeIssues(resumeText, signals);
   const improvementPlan = generateImprovementPlan(resumeText, signals, missingKeywords);
@@ -396,43 +459,134 @@ function analyzeResume(resumeText, jobDescription) {
       hasProjects,
       hasMetrics,
       resumeLength: resumeTokens.length,
+=======
+  const experienceYearsMatch = resumeText.match(/(\d+)\+?\s*(years|yrs)/i);
+  const experienceYears = experienceYearsMatch ? parseInt(experienceYearsMatch[1], 10) : 0;
+
+  return {
+    overallScore: score,
+    score,
+    trustScore: computeTrustScore(score, experienceYears, skills.length),
+    skillDensity: computeSkillDensity(skills, resumeText),
+    matchedKeywords,
+    missingKeywords: missingKeywords.slice(0, 20),
+    recommendations,
+    predictedCategory: null,
+    categoryConfidence: 0,
+    extracted: {
+      skills,
+      experienceYears,
+      evidence: buildEvidence(resumeText, skills),
+>>>>>>> dd0acc4 (updated code but with errors)
     },
   };
 }
 
-app.get('/api/health', (req, res) => {
+async function callMlService(resumeText, jobDescription) {
+  const payload = {
+    resumeText,
+    jobDescription,
+  };
+
+  const response = await fetch(`${ML_SERVICE_URL}/analyze`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(payload),
+  });
+
+  if (!response.ok) {
+    const errorBody = await response.text();
+    throw new Error(`ML service error: ${response.status} ${errorBody}`);
+  }
+
+  return response.json();
+}
+
+function computeResumeHash(buffer) {
+  return crypto.createHash('sha256').update(buffer).digest('hex');
+}
+
+app.get('/api/health', async (req, res) => {
+  let mlStatus = 'offline';
+  try {
+    const response = await fetch(`${ML_SERVICE_URL}/health`, { method: 'GET' });
+    if (response.ok) {
+      mlStatus = 'ok';
+    }
+  } catch (error) {
+    mlStatus = 'offline';
+  }
+
   res.json({
     status: 'ok',
     service: 'cloud-resume-analyzer-api',
     timestamp: new Date().toISOString(),
+<<<<<<< HEAD
     cloud: {
       provider: minioClient ? 'minio' : 'memory',
       endpoint: MINIO_ENDPOINT || 'none',
       storageBucket: MINIO_BUCKET,
       minioConnected: !!minioClient,
+=======
+    mlService: {
+      url: ML_SERVICE_URL,
+      status: mlStatus,
+    },
+    blockchain: {
+      rpc: process.env.BLOCKCHAIN_RPC_URL || 'http://127.0.0.1:8545',
+      contract: process.env.RESUME_VERIFICATION_CONTRACT_ADDRESS || 'unset',
+>>>>>>> dd0acc4 (updated code but with errors)
     },
   });
 });
 
 app.post('/api/analyze', upload.single('resume'), async (req, res) => {
   try {
-    const { jobDescription = '' } = req.body;
+    const { jobDescription = '', storeOnChain = 'false' } = req.body;
 
     if (!req.file) {
       return res.status(400).json({ error: 'Resume file is required.' });
     }
 
     const filename = req.file.originalname || 'resume.txt';
+<<<<<<< HEAD
     const storagePath = `minio://${MINIO_BUCKET}/${Date.now()}-${filename}`;
 
     // For basic version, parse text directly from uploaded buffer.
+=======
+>>>>>>> dd0acc4 (updated code but with errors)
     const resumeText = req.file.buffer.toString('utf-8');
 
     if (!resumeText.trim()) {
       return res.status(400).json({ error: 'Uploaded resume appears to be empty or unsupported.' });
     }
 
-    const analysis = analyzeResume(resumeText, jobDescription);
+    let analysis;
+    try {
+      analysis = await callMlService(resumeText, jobDescription);
+      analysis.analysisSource = 'ml-service';
+    } catch (error) {
+      console.warn('ML service unavailable, falling back to local analyzer:', error.message);
+      analysis = analyzeResumeLocal(resumeText, jobDescription);
+      analysis.analysisSource = 'local-fallback';
+    }
+
+    const resumeHash = computeResumeHash(req.file.buffer);
+    let blockchainResponse = {
+      hash: resumeHash,
+      action: 'none',
+      verified: false,
+    };
+
+    if (storeOnChain === 'true') {
+      blockchainResponse = await storeResumeHash(resumeHash);
+      blockchainResponse.action = 'store';
+    } else if (req.body.verifyOnChain === 'true') {
+      blockchainResponse = await verifyResumeHash(resumeHash);
+      blockchainResponse.action = 'verify';
+    }
 
     // Attempt to upload to MinIO if configured
     let cloudUpload = { uploaded: false, path: storagePath };
@@ -453,12 +607,51 @@ app.post('/api/analyze', upload.single('resume'), async (req, res) => {
         sizeBytes: req.file.size,
         mimeType: req.file.mimetype,
       },
+<<<<<<< HEAD
       cloudStorage: cloudUpload,
+=======
+>>>>>>> dd0acc4 (updated code but with errors)
       analysis,
+      resumeHash,
+      blockchain: blockchainResponse,
     });
   } catch (error) {
     return res.status(500).json({
       error: 'Failed to analyze resume.',
+      details: error.message,
+    });
+  }
+});
+
+app.post('/api/blockchain/submit', upload.single('resume'), async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ error: 'Resume file is required for blockchain submission.' });
+    }
+
+    const resumeHash = computeResumeHash(req.file.buffer);
+    const result = await storeResumeHash(resumeHash);
+    return res.json(result);
+  } catch (error) {
+    return res.status(500).json({
+      error: 'Failed to submit resume hash to blockchain.',
+      details: error.message,
+    });
+  }
+});
+
+app.get('/api/blockchain/verify/:hash', async (req, res) => {
+  try {
+    const { hash } = req.params;
+    if (!hash) {
+      return res.status(400).json({ error: 'Resume hash is required.' });
+    }
+
+    const result = await verifyResumeHash(hash);
+    return res.json(result);
+  } catch (error) {
+    return res.status(500).json({
+      error: 'Blockchain verification failed.',
       details: error.message,
     });
   }
