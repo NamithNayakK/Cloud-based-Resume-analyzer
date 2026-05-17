@@ -1,0 +1,10 @@
+flask
+flask-cors
+requests
+PyYAML
+sentence-transformers
+scikit-learn
+pandas
+beautifulsoup4
+gunicorn
+tqdm

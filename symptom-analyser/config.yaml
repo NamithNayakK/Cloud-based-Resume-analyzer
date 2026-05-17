@@ -1,0 +1,17 @@
+search:
+  provider: "mock"
+  api_key: ""
+  max_results: 5
+
+
+model:
+  embedding_model: "all-MiniLM-L6-v2"
+
+scoring:
+  evidence_weight: 0.7
+  min_confidence: 0.35
+
+server:
+  host: "0.0.0.0"
+  port: 5000
+  enable_cors: true
